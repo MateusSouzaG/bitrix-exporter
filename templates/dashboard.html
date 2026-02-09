@@ -27,8 +27,10 @@
                         <div class="form-group">
                             <label for="dept">Departamento:</label>
                             <select id="dept" name="dept">
+                                {% if is_admin %}
                                 <option value="">Todos os departamentos</option>
-                                <!-- Opções de departamento são preenchidas via JavaScript (loadDepartmentsIntoSelect) para evitar duplicação -->
+                                {% endif %}
+                                <!-- Opções de departamento são preenchidas via JavaScript (loadDepartmentsIntoSelect) -->
                             </select>
                             <small class="form-hint">Escolha departamento <strong>ou</strong> colaborador; não os dois ao mesmo tempo.</small>
                             {% if not is_admin %}
@@ -38,14 +40,14 @@
                         
                         <div class="form-group" id="collaborator-form-group">
                             <label for="user_substring">Colaborador:</label>
-                            <div class="custom-select-wrapper" id="collaborator_select_wrapper">
+                            <div class="custom-select-wrapper" id="collaborator_select_wrapper" data-all-collaborators-label="{{ all_collaborators_label }}">
                                 <input type="hidden" id="user_substring" name="user_substring" value="">
                                 <div class="custom-select" id="custom_select_collaborator" tabindex="0">
-                                    <div class="custom-select-selected">Todos os colaboradores</div>
+                                    <div class="custom-select-selected">{{ all_collaborators_label }}</div>
                                     <div class="custom-select-arrow">▼</div>
                                 </div>
                                 <div class="custom-select-options" id="custom_select_options_collaborator">
-                                    <div class="custom-select-option" data-value="">Todos os colaboradores</div>
+                                    <div class="custom-select-option" data-value="">{{ all_collaborators_label }}</div>
                                 </div>
                             </div>
                         </div>
@@ -524,7 +526,10 @@
                     collabWrapper.setAttribute('aria-disabled', 'true');
                 }
                 if (userInput) userInput.value = '';
-                if (collabSelected) collabSelected.textContent = 'Todos os colaboradores';
+                if (collabSelected) {
+                    var label = (collabWrapper && collabWrapper.getAttribute('data-all-collaborators-label')) || 'Todos os colaboradores';
+                    collabSelected.textContent = label;
+                }
                 if (deptSelect) deptSelect.disabled = false;
             } else if (collabVal) {
                 if (deptSelect) {
@@ -578,7 +583,9 @@
             if (dept && dept.value && userSub && userSub.value) {
                 userSub.value = '';
                 var sel = document.querySelector('#custom_select_collaborator .custom-select-selected');
-                if (sel) sel.textContent = 'Todos os colaboradores';
+                var wrapper = document.getElementById('collaborator_select_wrapper');
+                var label = (wrapper && wrapper.getAttribute('data-all-collaborators-label')) || 'Todos os colaboradores';
+                if (sel) sel.textContent = label;
             }
             const btn = document.getElementById('exportBtn');
             const btnText = btn.querySelector('.btn-text');
