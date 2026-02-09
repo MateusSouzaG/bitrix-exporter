@@ -6,6 +6,14 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _truncate_for_bcrypt(s: str, max_bytes: int = 72) -> str:
+    """Bcrypt aceita no máximo 72 bytes; trunca para evitar ValueError no deploy."""
+    if not s:
+        return s
+    b = s.encode("utf-8")[:max_bytes]
+    return b.decode("utf-8", errors="ignore")
+
+
 class User:
     """Representa um usuário do sistema."""
     
@@ -41,49 +49,52 @@ class User:
     
     def verify_password(self, password: str) -> bool:
         """Verifica se a senha está correta."""
+        password = _truncate_for_bcrypt(password or "")
         return pwd_context.verify(password, self.password_hash)
 
 
-# Senha padrão para todos os usuários (deve ser alterada em produção)
-# Senha: "bitrix2024" (hash bcrypt)
-DEFAULT_PASSWORD_HASH = pwd_context.hash("bitrix2024")
+# Hashes de senha por gestor (bcrypt, senhas fortes 2026). Para trocar: hash_password("nova_senha") e substitua o hash.
+HASH_JULIANA = "$2b$12$Ku5dwNipcP9G.E0zTlpOges.ybnQJBOzpKEjwbAk8UPvORo8Hj/cm"
+HASH_MATEUS = "$2b$12$h8/KhUM9WkV9Laip8BxZmur/eTIHI0RLlkM.U3O8Fj95v36O0AenK"
+HASH_TAYLA = "$2b$12$pVlJ.sd9xRitW4KRaHvt9.ae0kZC.uuTmlAB7gou40iE0pB50gWmm"
+HASH_RAFAEL = "$2b$12$/U25ccGC5pjDcAKdP7ehiuUqHAinQFxr9L8l/KLxJWslP6RAWEcma"
+HASH_DEBORAH = "$2b$12$6daKfwmyXiE7hvsNv17.LegTTL9f2jfvF6QycYv5CFvPWB/ce0oO."
 
-# Configuração de usuários
+# Configuração de usuários (cada um com sua própria senha)
 USERS: Dict[str, User] = {
     # Administradores (acesso total)
     "juliana.paes": User(
         username="juliana.paes",
-        password_hash=DEFAULT_PASSWORD_HASH,
+        password_hash=HASH_JULIANA,
         full_name="Juliana Paes",
         role="admin",
-        allowed_departments=None  # None = acesso a todos
+        allowed_departments=None
     ),
     "mateus.souza": User(
         username="mateus.souza",
-        password_hash=DEFAULT_PASSWORD_HASH,
+        password_hash=HASH_MATEUS,
         full_name="Mateus Souza",
         role="admin",
-        allowed_departments=None  # None = acesso a todos
+        allowed_departments=None
     ),
-    
     # Supervisores por departamento
     "tayla.ferreira": User(
         username="tayla.ferreira",
-        password_hash=DEFAULT_PASSWORD_HASH,
+        password_hash=HASH_TAYLA,
         full_name="Tayla Ferreira",
         role="supervisor",
         allowed_departments=["RNA"]
     ),
     "rafael.reimao": User(
         username="rafael.reimao",
-        password_hash=DEFAULT_PASSWORD_HASH,
+        password_hash=HASH_RAFAEL,
         full_name="Rafael Reimão",
         role="supervisor",
         allowed_departments=["DTC"]
     ),
     "deborah.szajin": User(
         username="deborah.szajin",
-        password_hash=DEFAULT_PASSWORD_HASH,
+        password_hash=HASH_DEBORAH,
         full_name="Deborah Szajin",
         role="supervisor",
         allowed_departments=["COMERCIAL"]
@@ -116,4 +127,4 @@ def verify_user_password(username: str, password: str) -> bool:
 
 def hash_password(password: str) -> str:
     """Gera hash de uma senha (útil para atualizar senhas)."""
-    return pwd_context.hash(password)
+    return pwd_context.hash(_truncate_for_bcrypt(password or ""))
