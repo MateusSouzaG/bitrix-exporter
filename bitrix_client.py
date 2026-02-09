@@ -19,13 +19,21 @@ class BitrixClient:
         Args:
             webhook_base: URL base do webhook. Se None, usa BITRIX_WEBHOOK_BASE do config.
         """
-        self.webhook_base = webhook_base or BITRIX_WEBHOOK_BASE
+        self.webhook_base = (webhook_base or BITRIX_WEBHOOK_BASE or "").strip()
         if not self.webhook_base:
             raise ValueError("Webhook base não configurado")
         
         # Garantir que termina com /
         if not self.webhook_base.endswith("/"):
             self.webhook_base += "/"
+        # Log seguro para diagnóstico: mostra host e indica que token está configurado (sem expor o token)
+        try:
+            from urllib.parse import urlparse
+            p = urlparse(self.webhook_base)
+            mask = "***" if "/rest/" in self.webhook_base else "(configurado)"
+            logger.info(f"Bitrix webhook em uso: {p.scheme}://{p.netloc}/rest/.../{mask}/")
+        except Exception:
+            logger.info("Bitrix webhook em uso: (configurado)")
     
     def _request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -155,10 +163,17 @@ class BitrixClient:
                         batch_result = outer_result
                     
                     # Ordenar resultados pela ordem dos comandos
+                    # Bitrix pode devolver cada resultado como string JSON; deserializar se for o caso
                     batch_results = []
                     for cmd_key in cmd_keys:
                         if cmd_key in batch_result:
-                            batch_results.append(batch_result[cmd_key])
+                            val = batch_result[cmd_key]
+                            if isinstance(val, str):
+                                try:
+                                    val = json.loads(val)
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
+                            batch_results.append(val)
                         else:
                             logger.warning(f"Chave {cmd_key} não encontrada na resposta do batch. Chaves disponíveis: {list(batch_result.keys())[:10]}")
                             batch_results.append(None)
