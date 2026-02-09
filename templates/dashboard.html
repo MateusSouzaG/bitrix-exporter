@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Bitrix24 Exporter</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Bitrix24 Exporter</h1>
+            <div class="user-info">
+                <span>Olá, {{ user.full_name }}</span>
+                <span class="role-badge">{{ "Administrador" if is_admin else "Supervisor" }}</span>
+                <a href="/logout" class="btn btn-secondary btn-small">Sair</a>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <div class="card">
+                <h2>Exportar Tarefas</h2>
+                <p class="description">Configure os filtros abaixo para exportar tarefas do Bitrix24 para Excel.</p>
+                
+                <form method="POST" action="/export" id="exportForm" class="export-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dept">Departamento:</label>
+                            <select id="dept" name="dept">
+                                <option value="">Todos os departamentos</option>
+                                <!-- Opções de departamento são preenchidas via JavaScript (loadDepartmentsIntoSelect) para evitar duplicação -->
+                            </select>
+                            <small class="form-hint">Escolha departamento <strong>ou</strong> colaborador; não os dois ao mesmo tempo.</small>
+                            {% if not is_admin %}
+                            <small class="form-hint">Você só pode exportar tarefas dos departamentos aos quais tem acesso.</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group" id="collaborator-form-group">
+                            <label for="user_substring">Colaborador:</label>
+                            <div class="custom-select-wrapper" id="collaborator_select_wrapper">
+                                <input type="hidden" id="user_substring" name="user_substring" value="">
+                                <div class="custom-select" id="custom_select_collaborator" tabindex="0">
+                                    <div class="custom-select-selected">Todos os colaboradores</div>
+                                    <div class="custom-select-arrow">▼</div>
+                                </div>
+                                <div class="custom-select-options" id="custom_select_options_collaborator">
+                                    <div class="custom-select-option" data-value="">Todos os colaboradores</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="activity_preset">Estava ativo (Período):</label>
+                            <div class="custom-select-wrapper">
+                                <input type="hidden" id="activity_preset" name="activity_preset" value="ultimos_7_dias">
+                                <div class="custom-select" id="custom_select_activity_preset" tabindex="0">
+                                    <div class="custom-select-selected">Últimos 7 dias</div>
+                                    <div class="custom-select-arrow">▼</div>
+                                </div>
+                                <div class="custom-select-options" id="custom_select_options_activity_preset">
+                                    {% if preset_options %}
+                                        {% for value, label in preset_options %}
+                                        <div class="custom-select-option" data-value="{{ value }}">{{ label }}</div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="custom-select-option" data-value="">Todo o período</div>
+                                        <div class="custom-select-option" data-value="dia_atual">Dia atual</div>
+                                        <div class="custom-select-option" data-value="amanha">Amanhã</div>
+                                        <div class="custom-select-option" data-value="esta_semana">Esta semana</div>
+                                        <div class="custom-select-option" data-value="este_mes">Este mês</div>
+                                        <div class="custom-select-option" data-value="ultimos_7_dias">Últimos 7 dias</div>
+                                        <div class="custom-select-option" data-value="ultimos_30_dias">Últimos 30 dias</div>
+                                        <div class="custom-select-option" data-value="ultimos_60_dias">Últimos 60 dias</div>
+                                        <div class="custom-select-option" data-value="ultimos_90_dias">Últimos 90 dias</div>
+                                        <div class="custom-select-option" data-value="semana_passada">Semana passada</div>
+                                        <div class="custom-select-option" data-value="mes_passado">Mês passado</div>
+                                        <div class="custom-select-option" data-value="proxima_semana">Na próxima semana</div>
+                                        <div class="custom-select-option" data-value="proximo_mes">No próximo mês</div>
+                                        <div class="custom-select-option" data-value="intervalo_personalizado">Intervalo personalizado</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row" id="custom_date_range" style="display: none;">
+                        <div class="form-group">
+                            <label for="activity_from">Data Inicial:</label>
+                            <input type="datetime-local" id="activity_from" name="activity_from">
+                            <small class="form-hint">Data inicial do período (apenas se "Intervalo personalizado" estiver selecionado)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="activity_to">Data Final:</label>
+                            <input type="datetime-local" id="activity_to" name="activity_to">
+                            <small class="form-hint">Data final do período (apenas se "Intervalo personalizado" estiver selecionado)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="status_filter">Status:</label>
+                            <select id="status_filter" name="status_filter">
+                                <option value="">Todos os status</option>
+                                <option value="NEW">Nova</option>
+                                <option value="IN_PROGRESS">Em Progresso</option>
+                                <option value="COMPLETED">Concluída</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="exportBtn">
+                            <span class="btn-text">Exportar para Excel</span>
+                            <span class="btn-loading" style="display: none;">Processando...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="info-card">
+                <h3>Informações</h3>
+                <ul>
+                    <li>O arquivo Excel será gerado com todas as tarefas que correspondem aos filtros selecionados.</li>
+                    <li>Cada tarefa pode aparecer em múltiplas linhas se houver vários lançamentos de tempo.</li>
+                    <li>O processo pode levar alguns minutos dependendo da quantidade de tarefas.</li>
+                    <li><strong>Dica:</strong> Se a planilha vier vazia, verifique:
+                        <ul style="margin-top: 10px; margin-left: 20px;">
+                            <li><strong>IMPORTANTE:</strong> O filtro "Estava ativo" usa ACTIVITY_DATE (data da última atividade da tarefa).</li>
+                            <li>Verifique se há tarefas com atividade no período selecionado no Bitrix24</li>
+                            <li>As datas devem estar no formato correto (o sistema converte automaticamente)</li>
+                            <li><strong>Teste primeiro sem filtros de data</strong> para verificar se encontra tarefas</li>
+                            <li>Se encontrar tarefas sem filtro mas não com filtro, verifique os logs do servidor</li>
+                            <li>Tente remover alguns filtros para ampliar a busca</li>
+                        </ul>
+                    </li>
+                    {% if not is_admin %}
+                    <li><strong>Seu acesso:</strong> Você só pode exportar tarefas dos departamentos aos quais tem permissão.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Fecha as outras listas rebatíveis para que só uma fique aberta e em primeiro plano
+        function closeActivityPresetDropdownOnly() {
+            const opts = document.getElementById('custom_select_options_activity_preset');
+            const trigger = document.getElementById('custom_select_activity_preset');
+            if (!opts || window.getComputedStyle(opts).display !== 'block') return;
+            opts.style.display = 'none';
+            opts.classList.remove('show');
+            opts.style.position = '';
+            opts.style.top = '';
+            opts.style.left = '';
+            opts.style.width = '';
+            if (trigger) {
+                trigger.classList.remove('active');
+                var w = trigger.closest('.custom-select-wrapper'); if (w) w.classList.remove('dropdown-open');
+                var g = trigger.closest('.form-group'); if (g) g.classList.remove('dropdown-open');
+                var r = trigger.closest('.form-row'); if (r) r.classList.remove('dropdown-open');
+            }
+        }
+        function closeCollaboratorDropdownOnly() {
+            const opts = document.getElementById('custom_select_options_collaborator');
+            const trigger = document.getElementById('custom_select_collaborator');
+            if (!opts || window.getComputedStyle(opts).display !== 'block') return;
+            opts.style.display = 'none';
+            opts.classList.remove('show');
+            opts.style.position = '';
+            opts.style.top = '';
+            opts.style.left = '';
+            opts.style.width = '';
+            opts.style.maxWidth = '';
+            opts.style.minWidth = '';
+            if (trigger) {
+                trigger.classList.remove('active');
+                var w = trigger.closest('.custom-select-wrapper'); if (w) w.classList.remove('dropdown-open');
+                var g = trigger.closest('.form-group'); if (g) g.classList.remove('dropdown-open');
+                var r = trigger.closest('.form-row'); if (r) r.classList.remove('dropdown-open');
+            }
+        }
+        
+        // Custom dropdown functionality
+        function initCustomSelect() {
+            const customSelect = document.getElementById('custom_select_activity_preset');
+            const customSelectOptions = document.getElementById('custom_select_options_activity_preset');
+            const customSelectWrapper = customSelect ? customSelect.closest('.custom-select-wrapper') : null;
+            const hiddenInput = document.getElementById('activity_preset');
+            const selectedText = customSelect ? customSelect.querySelector('.custom-select-selected') : null;
+            
+            if (!customSelect || !customSelectOptions) {
+                console.error('Custom select elements not found', { customSelect, customSelectOptions });
+                return;
+            }
+            
+            const optionsCount = customSelectOptions.querySelectorAll('.custom-select-option').length;
+            console.log('Custom select initialized', { 
+                customSelect, 
+                customSelectOptions, 
+                optionsCount: optionsCount,
+                optionsHTML: customSelectOptions.innerHTML.substring(0, 200)
+            });
+            
+            if (optionsCount === 0) {
+                console.error('Nenhuma opção encontrada no dropdown! Verifique se preset_options está sendo passado corretamente.');
+            }
+            
+            // Toggle dropdown
+            customSelect.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                const currentDisplay = window.getComputedStyle(customSelectOptions).display;
+                const isOpen = currentDisplay === 'block';
+                console.log('Click detected', { isOpen, currentDisplay, computedStyle: window.getComputedStyle(customSelectOptions).display });
+                
+                if (isOpen) {
+                    customSelectOptions.style.display = 'none';
+                    customSelectOptions.classList.remove('show');
+                    customSelect.classList.remove('active');
+                    customSelectOptions.style.position = '';
+                    customSelectOptions.style.top = '';
+                    customSelectOptions.style.left = '';
+                    customSelectOptions.style.width = '';
+                    if (customSelectWrapper) {
+                        customSelectWrapper.classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-group')) {
+                        customSelect.closest('.form-group').classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-row')) {
+                        customSelect.closest('.form-row').classList.remove('dropdown-open');
+                    }
+                } else {
+                    closeCollaboratorDropdownOnly();
+                    const selectRect = customSelect.getBoundingClientRect();
+                    const wrapperRect = customSelectWrapper ? customSelectWrapper.getBoundingClientRect() : selectRect;
+                    
+                    customSelectOptions.style.display = 'block';
+                    customSelectOptions.classList.add('show');
+                    customSelect.classList.add('active');
+                    
+                    customSelectOptions.style.position = 'fixed';
+                    customSelectOptions.style.top = (selectRect.bottom + 2) + 'px';
+                    customSelectOptions.style.left = selectRect.left + 'px';
+                    customSelectOptions.style.width = selectRect.width + 'px';
+                    customSelectOptions.style.zIndex = '9999999';
+                    
+                    if (customSelectWrapper) {
+                        customSelectWrapper.classList.add('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-group')) {
+                        customSelect.closest('.form-group').classList.add('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-row')) {
+                        customSelect.closest('.form-row').classList.add('dropdown-open');
+                    }
+                    console.log('Options should be visible', { 
+                        display: customSelectOptions.style.display,
+                        position: customSelectOptions.style.position,
+                        top: customSelectOptions.style.top,
+                        left: customSelectOptions.style.left,
+                        zIndex: customSelectOptions.style.zIndex,
+                        rect: customSelectOptions.getBoundingClientRect()
+                    });
+                }
+            });
+            
+            // Select option
+            customSelectOptions.querySelectorAll('.custom-select-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.getAttribute('data-value');
+                    const label = this.textContent.trim();
+                    
+                    hiddenInput.value = value;
+                    selectedText.textContent = label;
+                    customSelectOptions.style.display = 'none';
+                    customSelectOptions.classList.remove('show');
+                    customSelect.classList.remove('active');
+                    customSelectOptions.style.position = '';
+                    customSelectOptions.style.top = '';
+                    customSelectOptions.style.left = '';
+                    customSelectOptions.style.width = '';
+                    if (customSelectWrapper) {
+                        customSelectWrapper.classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-group')) {
+                        customSelect.closest('.form-group').classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-row')) {
+                        customSelect.closest('.form-row').classList.remove('dropdown-open');
+                    }
+                    
+                    toggleCustomDateRange();
+                });
+            });
+            
+            // Close when clicking outside
+            document.addEventListener('click', function(e) {
+                if (customSelectWrapper && !customSelectWrapper.contains(e.target) && !customSelectOptions.contains(e.target)) {
+                    customSelectOptions.style.display = 'none';
+                    customSelectOptions.classList.remove('show');
+                    customSelect.classList.remove('active');
+                    customSelectOptions.style.position = '';
+                    customSelectOptions.style.top = '';
+                    customSelectOptions.style.left = '';
+                    customSelectOptions.style.width = '';
+                    if (customSelectWrapper) {
+                        customSelectWrapper.classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-group')) {
+                        customSelect.closest('.form-group').classList.remove('dropdown-open');
+                    }
+                    if (customSelect.closest('.form-row')) {
+                        customSelect.closest('.form-row').classList.remove('dropdown-open');
+                    }
+                }
+            });
+            
+            function closeActivityPresetDropdown(e) {
+                if (customSelectOptions.contains(e && e.target)) return;
+                if (window.getComputedStyle(customSelectOptions).display !== 'block') return;
+                customSelectOptions.style.display = 'none';
+                customSelectOptions.classList.remove('show');
+                customSelect.classList.remove('active');
+                customSelectOptions.style.position = '';
+                customSelectOptions.style.top = '';
+                customSelectOptions.style.left = '';
+                customSelectOptions.style.width = '';
+                if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
+                if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
+                if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
+            }
+            
+            window.addEventListener('scroll', closeActivityPresetDropdown, true);
+            
+            // Keyboard navigation
+            customSelect.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    customSelect.click();
+                }
+            });
+        }
+        
+        function toggleCustomDateRange() {
+            const preset = document.getElementById('activity_preset').value;
+            const customRange = document.getElementById('custom_date_range');
+            
+            if (preset === 'intervalo_personalizado') {
+                customRange.style.display = 'grid';
+            } else {
+                customRange.style.display = 'none';
+                // Limpar campos quando não estiver em modo personalizado
+                document.getElementById('activity_from').value = '';
+                document.getElementById('activity_to').value = '';
+            }
+        }
+        
+        function initCollaboratorSelect() {
+            const customSelect = document.getElementById('custom_select_collaborator');
+            const customSelectOptions = document.getElementById('custom_select_options_collaborator');
+            const customSelectWrapper = customSelect ? customSelect.closest('.custom-select-wrapper') : null;
+            const hiddenInput = document.getElementById('user_substring');
+            const selectedText = customSelect ? customSelect.querySelector('.custom-select-selected') : null;
+            if (!customSelect || !customSelectOptions || !hiddenInput) return;
+            
+            customSelect.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (customSelectWrapper && customSelectWrapper.classList.contains('field-disabled')) return;
+                const currentDisplay = window.getComputedStyle(customSelectOptions).display;
+                const isOpen = currentDisplay === 'block';
+                if (isOpen) {
+                    customSelectOptions.style.display = 'none';
+                    customSelectOptions.classList.remove('show');
+                    customSelect.classList.remove('active');
+                    customSelectOptions.style.position = '';
+                    customSelectOptions.style.top = '';
+                    customSelectOptions.style.left = '';
+                    customSelectOptions.style.width = '';
+                    customSelectOptions.style.maxWidth = '';
+                    customSelectOptions.style.minWidth = '';
+                    if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
+                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
+                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
+                } else {
+                    closeActivityPresetDropdownOnly();
+                    const selectRect = customSelect.getBoundingClientRect();
+                    const w = selectRect.width + 'px';
+                    customSelectOptions.style.display = 'block';
+                    customSelectOptions.classList.add('show');
+                    customSelect.classList.add('active');
+                    customSelectOptions.style.position = 'fixed';
+                    customSelectOptions.style.top = (selectRect.bottom + 2) + 'px';
+                    customSelectOptions.style.left = selectRect.left + 'px';
+                    customSelectOptions.style.width = w;
+                    customSelectOptions.style.maxWidth = w;
+                    customSelectOptions.style.minWidth = w;
+                    customSelectOptions.style.zIndex = '9999999';
+                    if (customSelectWrapper) customSelectWrapper.classList.add('dropdown-open');
+                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.add('dropdown-open');
+                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.add('dropdown-open');
+                }
+            });
+            
+            customSelectOptions.addEventListener('click', function(e) {
+                const option = e.target.closest('.custom-select-option');
+                if (!option) return;
+                e.stopPropagation();
+                const value = option.getAttribute('data-value') || '';
+                const label = option.textContent.trim();
+                hiddenInput.value = value;
+                if (selectedText) selectedText.textContent = label;
+                customSelectOptions.style.display = 'none';
+                customSelectOptions.classList.remove('show');
+                customSelect.classList.remove('active');
+                customSelectOptions.style.position = '';
+                customSelectOptions.style.top = '';
+                customSelectOptions.style.left = '';
+                customSelectOptions.style.width = '';
+                customSelectOptions.style.maxWidth = '';
+                customSelectOptions.style.minWidth = '';
+                if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
+                if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
+                if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
+                syncDeptCollaboratorExclusion();
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (customSelectWrapper && !customSelectWrapper.contains(e.target) && !customSelectOptions.contains(e.target)) {
+                    customSelectOptions.style.display = 'none';
+                    customSelectOptions.classList.remove('show');
+                    customSelect.classList.remove('active');
+                    customSelectOptions.style.position = '';
+                    customSelectOptions.style.top = '';
+                    customSelectOptions.style.left = '';
+                    customSelectOptions.style.width = '';
+                    customSelectOptions.style.maxWidth = '';
+                    customSelectOptions.style.minWidth = '';
+                    if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
+                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
+                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
+                }
+            });
+            
+            function closeCollaboratorDropdown(e) {
+                if (customSelectOptions.contains(e && e.target)) return;
+                if (window.getComputedStyle(customSelectOptions).display !== 'block') return;
+                customSelectOptions.style.display = 'none';
+                customSelectOptions.classList.remove('show');
+                customSelect.classList.remove('active');
+                customSelectOptions.style.position = '';
+                customSelectOptions.style.top = '';
+                customSelectOptions.style.left = '';
+                customSelectOptions.style.width = '';
+                customSelectOptions.style.maxWidth = '';
+                customSelectOptions.style.minWidth = '';
+                if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
+                if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
+                if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
+            }
+            
+            window.addEventListener('scroll', closeCollaboratorDropdown, true);
+            
+            customSelect.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    customSelect.click();
+                }
+            });
+        }
+        
+        function loadCollaboratorsIntoDropdown() {
+            fetch('/api/collaborators', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    const container = document.getElementById('custom_select_options_collaborator');
+                    if (!container || !data.names || !data.names.length) return;
+                    data.names.forEach(function(name) {
+                        const div = document.createElement('div');
+                        div.className = 'custom-select-option';
+                        div.setAttribute('data-value', name);
+                        div.textContent = name;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(function() {});
+        }
+        
+        function loadDepartmentsIntoSelect() {
+            fetch('/api/departments', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    const select = document.getElementById('dept');
+                    if (!select || !data.departments || !data.departments.length) return;
+                    data.departments.forEach(function(dept) {
+                        const opt = document.createElement('option');
+                        opt.value = dept;
+                        opt.textContent = dept;
+                        select.appendChild(opt);
+                    });
+                    syncDeptCollaboratorExclusion();
+                })
+                .catch(function() {});
+        }
+        
+        /** Departamento e Colaborador são mutuamente exclusivos: preencher um bloqueia e limpa o outro. */
+        function syncDeptCollaboratorExclusion() {
+            const deptSelect = document.getElementById('dept');
+            const userInput = document.getElementById('user_substring');
+            const collabWrapper = document.getElementById('collaborator_select_wrapper');
+            const collabSelected = document.querySelector('#custom_select_collaborator .custom-select-selected');
+            const deptVal = deptSelect ? deptSelect.value.trim() : '';
+            const collabVal = userInput ? userInput.value.trim() : '';
+            
+            if (deptVal) {
+                if (collabWrapper) {
+                    collabWrapper.classList.add('field-disabled');
+                    collabWrapper.setAttribute('aria-disabled', 'true');
+                }
+                if (userInput) userInput.value = '';
+                if (collabSelected) collabSelected.textContent = 'Todos os colaboradores';
+                if (deptSelect) deptSelect.disabled = false;
+            } else if (collabVal) {
+                if (deptSelect) {
+                    deptSelect.disabled = true;
+                    deptSelect.value = '';
+                }
+                if (collabWrapper) {
+                    collabWrapper.classList.remove('field-disabled');
+                    collabWrapper.setAttribute('aria-disabled', 'false');
+                }
+            } else {
+                if (deptSelect) deptSelect.disabled = false;
+                if (collabWrapper) {
+                    collabWrapper.classList.remove('field-disabled');
+                    collabWrapper.setAttribute('aria-disabled', 'false');
+                }
+            }
+        }
+        
+        // Listener: ao mudar departamento, bloquear/desbloquear colaborador
+        function bindDeptCollaboratorSync() {
+            const deptSelect = document.getElementById('dept');
+            if (deptSelect) deptSelect.addEventListener('change', syncDeptCollaboratorExclusion);
+        }
+        
+        // Inicializar ao carregar a página
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initCustomSelect();
+                initCollaboratorSelect();
+                loadCollaboratorsIntoDropdown();
+                loadDepartmentsIntoSelect();
+                bindDeptCollaboratorSync();
+                toggleCustomDateRange();
+            });
+        } else {
+            // DOM já está carregado
+            initCustomSelect();
+            initCollaboratorSelect();
+            loadCollaboratorsIntoDropdown();
+            loadDepartmentsIntoSelect();
+            bindDeptCollaboratorSync();
+            toggleCustomDateRange();
+        }
+        
+        document.getElementById('exportForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            syncDeptCollaboratorExclusion();
+            var dept = document.getElementById('dept');
+            var userSub = document.getElementById('user_substring');
+            if (dept && dept.value && userSub && userSub.value) {
+                userSub.value = '';
+                var sel = document.querySelector('#custom_select_collaborator .custom-select-selected');
+                if (sel) sel.textContent = 'Todos os colaboradores';
+            }
+            const btn = document.getElementById('exportBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            const form = document.getElementById('exportForm');
+            
+            function setProcessing(processing) {
+                btn.disabled = processing;
+                btnText.style.display = processing ? 'none' : 'inline';
+                btnLoading.style.display = processing ? 'inline' : 'none';
+            }
+            
+            setProcessing(true);
+            
+            const formData = new FormData(form);
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error(response.status === 500 ? 'Erro no servidor' : 'Erro ' + response.status);
+                }
+                var disposition = response.headers.get('Content-Disposition');
+                var filename = 'Exportacao_Tarefas.xlsx';
+                if (disposition && disposition.indexOf('filename=') !== -1) {
+                    var match = disposition.match(/filename="?([^";]+)"?/);
+                    if (match) filename = match[1];
+                }
+                return response.blob().then(function(blob) {
+                    return { blob: blob, filename: filename };
+                });
+            })
+            .then(function(result) {
+                var url = window.URL.createObjectURL(result.blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = result.filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            })
+            .catch(function(err) {
+                alert('Erro ao exportar: ' + err.message);
+            })
+            .finally(function() {
+                setProcessing(false);
+            });
+        });
+    </script>
+</body>
+</html>

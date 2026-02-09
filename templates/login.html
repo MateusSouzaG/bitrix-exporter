@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Bitrix24 Exporter</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>Bitrix24 Exporter</h1>
+            <p class="subtitle">Sistema de Exportação de Tarefas</p>
+            
+            {% if error %}
+            <div class="error-message">{{ error }}</div>
+            {% endif %}
+            
+            <form method="POST" action="/login" class="login-form">
+                <div class="form-group">
+                    <label for="username">Usuário:</label>
+                    <input type="text" id="username" name="username" required autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Entrar</button>
+            </form>
+            
+            <div class="login-info">
+                <p><strong>Usuários do sistema:</strong></p>
+                <ul>
+                    <li>Administradores: juliana.paes, mateus.souza</li>
+                    <li>Supervisores: tayla.ferreira (RNA), rafael.reimao (DTC), deborah.szajin (COMERCIAL)</li>
+                </ul>
+                <p class="note">Senha padrão: bitrix2024</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
