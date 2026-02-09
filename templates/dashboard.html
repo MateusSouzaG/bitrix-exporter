@@ -29,6 +29,8 @@
                             <select id="dept" name="dept">
                                 {% if is_admin %}
                                 <option value="">Todos os departamentos</option>
+                                {% else %}
+                                <option value="">Selecione o departamento</option>
                                 {% endif %}
                                 <!-- Opções de departamento são preenchidas via JavaScript (loadDepartmentsIntoSelect) -->
                             </select>
