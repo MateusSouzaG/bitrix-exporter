@@ -14,7 +14,8 @@ from users_config import get_user, get_allowed_departments_for_user, USERS
 from web_services import (
     export_tasks_to_excel_bytes,
     get_available_departments,
-    filter_departments_by_user_access
+    filter_departments_by_user_access,
+    filter_collaborator_names_by_user_access,
 )
 from excel_handler import read_collaborators_sheet
 from date_filters import get_date_range_for_preset, PRESET_OPTIONS
@@ -101,11 +102,11 @@ async def logout(request: Request):
 
 @app.get("/api/collaborators")
 async def api_collaborators(request: Request):
-    """Retorna a lista de nomes dos colaboradores para o dropdown (requer login)."""
-    require_auth(request)
+    """Retorna a lista de nomes dos colaboradores que o usuário pode acessar (admin = todos, supervisor = só do seu departamento)."""
+    user = require_auth(request)
     try:
         collaborators_map = read_collaborators_sheet(COLLABORATORS_SHEET_PATH)
-        names = sorted({info["name"] for info in collaborators_map.values() if info.get("name")})
+        names = filter_collaborator_names_by_user_access(collaborators_map, user)
         return {"names": names}
     except Exception as e:
         logger.error(f"Erro ao carregar colaboradores para API: {e}")
@@ -148,7 +149,7 @@ async def dashboard(request: Request):
                     depts_from_users.update(d.upper() for d in u.allowed_departments)
             all_departments = sorted(depts_from_users)
         available_departments = filter_departments_by_user_access(all_departments, user)
-        collaborator_names = sorted({info["name"] for info in collaborators_map.values() if info.get("name")})
+        collaborator_names = filter_collaborator_names_by_user_access(collaborators_map, user)
     except Exception as e:
         logger.error(f"Erro ao carregar colaboradores/departamentos: {e}")
         collaborator_names = []
@@ -158,12 +159,14 @@ async def dashboard(request: Request):
                 depts_fallback.update(d.upper() for d in u.allowed_departments)
         available_departments = filter_departments_by_user_access(sorted(depts_fallback), user)
     
+    all_collaborators_label = "Todos os colaboradores" if user.role == "admin" else "Todos os colaboradores do departamento"
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
         "departments": available_departments,
         "collaborator_names": collaborator_names,
         "is_admin": user.role == "admin",
+        "all_collaborators_label": all_collaborators_label,
         "preset_options": PRESET_OPTIONS
     })
 
@@ -203,6 +206,11 @@ async def export_tasks(
 ):
     """Exporta tarefas para Excel."""
     user = require_auth(request)
+    
+    # Supervisores: sem filtro = restringir ao primeiro (e único) departamento permitido
+    if user.role != "admin" and user.allowed_departments and not dept and not (user_substring or "").strip():
+        dept = user.allowed_departments[0]
+        logger.info(f"Supervisor {user.username}: sem filtro; usando departamento padrão {dept}")
     
     # Validar acesso ao departamento
     if dept:

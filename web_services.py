@@ -156,6 +156,23 @@ def filter_departments_by_user_access(
     return [d for d in departments if d.upper() in [ad.upper() for ad in user.allowed_departments]]
 
 
+def filter_collaborator_names_by_user_access(
+    collaborators_map: Dict[int, Dict[str, str]],
+    user: User
+) -> List[str]:
+    """Retorna apenas os nomes de colaboradores que o usuário pode acessar (admin = todos, supervisor = só do seu departamento)."""
+    if user.role == "admin":
+        return sorted({info["name"] for info in collaborators_map.values() if info.get("name")})
+    if user.allowed_departments is None:
+        return []
+    allowed_upper = [d.upper() for d in user.allowed_departments]
+    names = {
+        info["name"] for info in collaborators_map.values()
+        if info.get("name") and (info.get("dept") or "").strip().upper() in allowed_upper
+    }
+    return sorted(names)
+
+
 def export_tasks_to_excel_bytes(
     user: User,
     dept: Optional[str] = None,
@@ -192,6 +209,14 @@ def export_tasks_to_excel_bytes(
             dept=dept,
             user_substring=user_substring
         )
+        # Supervisores: restringir ao departamento permitido (evita ver outros mesmo escolhendo por nome)
+        if user.role != "admin" and user.allowed_departments and scope_ids:
+            allowed_upper = [d.upper() for d in user.allowed_departments]
+            scope_ids = [
+                uid for uid in scope_ids
+                if ((collaborators_map.get(uid) or {}).get("dept") or "").strip().upper() in allowed_upper
+            ]
+            logger.info(f"Escopo filtrado por acesso do supervisor: {len(scope_ids)} colaborador(es)")
         
         logger.info(f"Escopo determinado: {len(scope_ids)} colaborador(es)")
         if scope_ids:
