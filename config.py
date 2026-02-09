@@ -8,6 +8,8 @@ load_dotenv()
 # Constantes
 BATCH_SIZE = 50  # Tamanho máximo de batch para API Bitrix24
 PAGINATION_SIZE = 50  # Tamanho da paginação para tasks.task.list
+# Busca lançamentos de tempo por requisição individual (estável). Use "0"/"false" para tentar batch.
+USE_SINGLE_REQUEST_TIME_ENTRIES = os.getenv("USE_SINGLE_REQUEST_TIME_ENTRIES", "1").strip().lower() not in ("0", "false", "no")
 DEFAULT_TIMEZONE = "-03:00"  # Timezone padrão (Brasil)
 MAX_RETRIES = 3  # Número máximo de tentativas em caso de erro
 RETRY_BACKOFF = 1  # Fator de backoff exponencial (segundos)
