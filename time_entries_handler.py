@@ -1,20 +1,42 @@
 """Busca e processamento de lançamentos de tempo (elapsed items) do Bitrix24."""
+import json
 import logging
-from typing import Dict, List, Any, Set, Optional
+from typing import Any, Dict, List, Optional, Set
 from bitrix_client import BitrixClient
-from config import BATCH_SIZE
+from config import BATCH_SIZE, USE_SINGLE_REQUEST_TIME_ENTRIES
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_time_entries_response(response: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _parse_time_entries_response(response: Any) -> List[Dict[str, Any]]:
     """
     Converte a resposta da API task.elapseditem.getlist na lista de lançamentos.
-    Mesma lógica de get_time_entries, para manter idêntica a qualidade dos dados.
+    Aceita resposta em dict (result/items), lista direta, ou string JSON (batch pode devolver assim).
     """
-    if not response:
+    if response is None:
         return []
-    result = response.get("result", {})
+    # Batch às vezes devolve a resposta como string JSON
+    if isinstance(response, str):
+        try:
+            response = json.loads(response)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    # Batch às vezes devolve a lista diretamente por comando
+    if isinstance(response, list):
+        return response if response else []
+    if not isinstance(response, dict):
+        return []
+    # Bitrix pode retornar erro no próprio item da resposta do batch (só tratar como erro se error for truthy)
+    if response.get("error"):
+        logger.warning(
+            "Bitrix API retornou erro em task.elapseditem.getlist: %s - %s",
+            response.get("error", ""),
+            response.get("error_description", ""),
+        )
+        return []
+    result = response.get("result")
+    if result is None:
+        return []
     if isinstance(result, list):
         return result
     if isinstance(result, dict):
@@ -45,9 +67,24 @@ def fetch_all_time_entries(client: BitrixClient, task_ids: Set[int]) -> Dict[int
     time_entries_map = {}
     task_ids_list = list(task_ids)
     total = len(task_ids_list)
-    
+
+    if USE_SINGLE_REQUEST_TIME_ENTRIES:
+        logger.info("Modo: requisições individuais para lançamentos de tempo (task.elapseditem.getlist por tarefa).")
+        logger.info(f"Buscando lançamentos de tempo para {total} tarefas (requisições individuais)...")
+        for task_id in task_ids_list:
+            try:
+                entries = client.get_time_entries(task_id)
+                time_entries_map[task_id] = list(entries) if entries else []
+            except Exception as e:
+                logger.warning(f"get_time_entries falhou para tarefa {task_id}: {e}")
+                time_entries_map[task_id] = []
+        total_entries = sum(len(v) for v in time_entries_map.values())
+        logger.info(f"Lançamentos de tempo coletados para {len(time_entries_map)} tarefas (total de itens: {total_entries})")
+        return time_entries_map
+
     logger.info(f"Buscando lançamentos de tempo para {total} tarefas (via batch)...")
     
+    first_raw_response_logged = False
     for i in range(0, total, BATCH_SIZE):
         batch_task_ids = task_ids_list[i:i + BATCH_SIZE]
         commands = [
@@ -58,12 +95,45 @@ def fetch_all_time_entries(client: BitrixClient, task_ids: Set[int]) -> Dict[int
             responses = client._batch(commands)
             for task_id, raw_response in zip(batch_task_ids, responses):
                 time_entries_map[task_id] = _parse_time_entries_response(raw_response)
+                # Logar uma amostra da resposta bruta quando vazia (só na primeira vez) para diagnóstico
+                if not first_raw_response_logged and not time_entries_map[task_id] and raw_response is not None:
+                    sample = json.dumps(raw_response, ensure_ascii=False)[:500]
+                    logger.warning(
+                        "Resposta bruta do Bitrix (task.elapseditem.getlist) para tarefa %s (amostra): %s",
+                        task_id,
+                        sample,
+                    )
+                    first_raw_response_logged = True
         except Exception as e:
             logger.warning(f"Erro no batch de lançamentos de tempo: {e}")
             for task_id in batch_task_ids:
                 time_entries_map[task_id] = []
-    
-    logger.info(f"Lançamentos de tempo coletados para {len(time_entries_map)} tarefas")
+
+    total_entries = sum(len(v) for v in time_entries_map.values())
+    logger.info(f"Lançamentos de tempo coletados para {len(time_entries_map)} tarefas (total de itens: {total_entries})")
+
+    # Fallback: se o batch retornou vazio para todas as tarefas, tentar requisições individuais
+    # (alguns webhooks/permissões se comportam diferente em batch vs chamada direta)
+    if total_entries == 0 and total > 0:
+        logger.warning(
+            "Batch de task.elapseditem.getlist retornou vazio. Tentando requisições individuais (fallback)..."
+        )
+        for task_id in task_ids_list:
+            try:
+                entries = client.get_time_entries(task_id)
+                time_entries_map[task_id] = list(entries) if entries else []
+            except Exception as e:
+                logger.debug(f"Fallback get_time_entries para tarefa {task_id}: {e}")
+                time_entries_map[task_id] = []
+        total_entries = sum(len(v) for v in time_entries_map.values())
+        if total_entries > 0:
+            logger.info(f"Fallback: {total_entries} lançamentos obtidos via requisições individuais.")
+        else:
+            logger.warning(
+                "Nenhum lançamento obtido (batch e fallback). "
+                "Confirme no Bitrix24 que o webhook tem permissão para 'Lançamentos de tempo' (tasks.elapseditem)."
+            )
+
     return time_entries_map
 
 
