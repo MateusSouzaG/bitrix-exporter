@@ -122,17 +122,30 @@ def write_tasks_excel(tasks_data: List[Dict[str, Any]], output_path: str):
     if "Task_ID" in df.columns:
         df = df.sort_values("Task_ID", ascending=False)
     
+    # Largura mínima por coluna (para não truncar textos importantes no Excel)
+    MIN_WIDTH_BY_COLUMN = {
+        "Comentário_Lançamento": 70,
+        "Título": 45,
+        "Quem_Lançou": 45,
+        "Participantes": 40,
+        "Responsável": 20,
+    }
+    MAX_WIDTH_DEFAULT = 50
+
     # Salvar Excel
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Tarefas", index=False)
         
-        # Ajustar largura das colunas
+        # Ajustar largura das colunas (evitar truncar "Comentário" / "Quem_Lançou" etc.)
         worksheet = writer.sheets["Tarefas"]
         for idx, col in enumerate(df.columns, 1):
             max_length = max(
                 df[col].astype(str).map(len).max() if len(df) > 0 else 0,
                 len(str(col))
             )
-            worksheet.column_dimensions[worksheet.cell(1, idx).column_letter].width = min(max_length + 2, 50)
+            min_for_col = MIN_WIDTH_BY_COLUMN.get(col, 0)
+            width = max(max_length + 2, min_for_col)
+            width = min(width, MAX_WIDTH_DEFAULT if col not in MIN_WIDTH_BY_COLUMN else 80)
+            worksheet.column_dimensions[worksheet.cell(1, idx).column_letter].width = width
     
     logger.info(f"Excel exportado com sucesso: {output_path} ({len(df)} linhas)")
