@@ -64,12 +64,12 @@ Sistema web para exportar tarefas do Bitrix24 via REST API (webhook) para Excel,
    ```
    Ou usando uvicorn diretamente:
    ```bash
-   uvicorn app:app --reload --host 0.0.0.0 --port 8000
+   uvicorn app:app --reload --host 0.0.0.0 --port 8080
    ```
 
 6. **Acesse no navegador:**
    ```
-   http://localhost:8000
+   http://localhost:8080
    ```
 
 ## 🌐 Deploy em Servidor Gratuito
