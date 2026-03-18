@@ -89,6 +89,7 @@ EXCEL_EXPORT_COLUMNS = [
     "Criada_Em",
     "Responsável",
     "Participantes",
+    "Tempo_Estimado",
     "Tempo_Total_Gasto",
     "Tempo_Lançamento",
     "Quem_Lançou",

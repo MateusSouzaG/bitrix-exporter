@@ -326,6 +326,18 @@ body {
     align-items: center;
     position: relative;
     z-index: 10;
+    box-sizing: border-box;
+}
+
+#custom_select_collaborator {
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: text;
+}
+
+#custom_select_collaborator .custom-select-arrow {
+    display: none;
 }
 
 .custom-select:hover {
@@ -339,6 +351,46 @@ body {
 .custom-select-selected {
     flex: 1;
     color: #333;
+}
+
+#collaborator_select_wrapper {
+    position: relative;
+    width: 100%;
+    z-index: 1000;
+    isolation: isolate;
+}
+
+#collaborator_select_wrapper:focus-within {
+    z-index: 1001;
+}
+
+.collab-search-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 5px;
+    font-size: 16px;
+    font-family: inherit;
+    color: #333;
+    background: white;
+    outline: none;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+    cursor: text;
+}
+
+.collab-search-input:focus {
+    border-color: #667eea;
+}
+
+.collab-search-input::placeholder {
+    color: #999;
+}
+
+.collab-search-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: #f0f0f0;
 }
 
 .custom-select-arrow {

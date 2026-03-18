@@ -14,6 +14,28 @@ from users_config import User
 logger = logging.getLogger(__name__)
 
 
+STATUS_LABELS = {
+    "1": "Pendente",
+    "2": "Pendente",
+    "3": "Em andamento",
+    "4": "Revisão pendente",
+    "5": "Concluída",
+    "6": "Adiada",
+    "7": "Adiada",
+}
+
+
+def format_status(raw_status: Any) -> str:
+    """
+    Converte o status numérico/textual retornado pelo Bitrix24 para rótulos legíveis.
+    Mantém o valor original caso não haja mapeamento conhecido.
+    """
+    if raw_status is None:
+        return ""
+    key = str(raw_status).strip()
+    return STATUS_LABELS.get(key, key)
+
+
 def format_time_entry_date(date_str: str) -> str:
     """Formata data do lançamento para exibição (ex: 28/04/2025 13:56)."""
     if not date_str or not str(date_str).strip():
@@ -85,11 +107,12 @@ def combine_tasks_with_time_entries(
         base_row = {
             "Task_ID": task.get("task_id", 0),
             "Título": str(task.get("title", "")),
-            "Status": str(task.get("status", "")),
+            "Status": format_status(task.get("status", "")),
             "Deadline": str(task.get("deadline", "")) if task.get("deadline") else "",
             "Criada_Em": format_time_entry_date(task.get("created_date", "") or ""),
             "Responsável": str(task.get("responsible_name", "")),
             "Participantes": participants_str,
+            "Tempo_Estimado": format_time(task.get("time_estimate") or 0),
             "Tempo_Total_Gasto": format_time(total_time.get("total_seconds", 0)),
             "Departamentos_Selecionados": str(task.get("departments", "")),
             "Atividade_em": str(task.get("activity_date", "")) if task.get("activity_date") else ""

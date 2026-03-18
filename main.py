@@ -11,7 +11,7 @@ from bitrix_client import BitrixClient
 from excel_handler import read_collaborators_sheet, write_tasks_excel
 from task_processor import determine_scope_ids, collect_task_ids, enrich_tasks
 from time_entries_handler import fetch_all_time_entries, process_time_entries, calculate_total_time
-from web_services import format_time_entry_date
+from web_services import format_time_entry_date, format_status
 
 # Configurar logging
 logging.basicConfig(
@@ -77,11 +77,12 @@ def combine_tasks_with_time_entries(
         base_row = {
             "Task_ID": task_id,
             "Título": task["title"],
-            "Status": task["status"],
+            "Status": format_status(task.get("status")),
             "Deadline": task["deadline"] if task["deadline"] else "",
             "Criada_Em": format_time_entry_date(created_str) if created_str else "",
             "Responsável": task["responsible_name"],
             "Participantes": participants_str,
+            "Tempo_Estimado": format_time(task.get("time_estimate") or 0),
             "Tempo_Total_Gasto": format_time(total_time["total_seconds"]),
             "Departamentos_Selecionados": task["departments"],
             "Atividade_em": task["activity_date"] if task["activity_date"] else ""

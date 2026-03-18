@@ -439,6 +439,16 @@ def enrich_tasks(
             else:
                 time_spent_seconds = None
             
+            # Extrair tempo estimado (timeEstimate) se disponível
+            estimate_raw = normalize_task_field(task, "timeEstimate") or normalize_task_field(task, "TIME_ESTIMATE") or normalize_task_field(task, "estimate") or normalize_task_field(task, "ESTIMATE")
+            if estimate_raw:
+                try:
+                    estimate_seconds = int(estimate_raw)
+                except (ValueError, TypeError):
+                    estimate_seconds = None
+            else:
+                estimate_seconds = None
+
             created_date_raw = normalize_task_field(task, "createdDate") or normalize_task_field(task, "CREATED_DATE") or normalize_task_field(task, "DATE_CREATE") or ""
             normalized_task = {
                 "task_id": task_id_int,
@@ -447,7 +457,8 @@ def enrich_tasks(
                 "deadline": str(normalize_task_field(task, "deadline") or normalize_task_field(task, "DEADLINE") or ""),
                 "activity_date": str(normalize_task_field(task, "activityDate") or normalize_task_field(task, "ACTIVITY_DATE") or ""),
                 "created_date": str(created_date_raw) if created_date_raw else "",
-                "time_spent_in_logs": time_spent_seconds,  # Tempo total em segundos (fallback quando não há lançamentos individuais)
+                "time_spent_in_logs": time_spent_seconds,
+                "time_estimate": estimate_seconds,
             }
             
             # Resolver responsável

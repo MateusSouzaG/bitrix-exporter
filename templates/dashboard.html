@@ -41,11 +41,11 @@
                         </div>
                         
                         <div class="form-group" id="collaborator-form-group">
-                            <label for="user_substring">Colaborador:</label>
+                            <label for="collab_search_input">Colaborador:</label>
                             <div class="custom-select-wrapper" id="collaborator_select_wrapper" data-all-collaborators-label="{{ all_collaborators_label }}">
                                 <input type="hidden" id="user_substring" name="user_substring" value="">
-                                <div class="custom-select" id="custom_select_collaborator" tabindex="0">
-                                    <div class="custom-select-selected">{{ all_collaborators_label }}</div>
+                                <div class="custom-select" id="custom_select_collaborator" tabindex="-1">
+                                    <input type="text" id="collab_search_input" class="collab-search-input" autocomplete="off" placeholder="{{ all_collaborators_label }}">
                                     <div class="custom-select-arrow">▼</div>
                                 </div>
                                 <div class="custom-select-options" id="custom_select_options_collaborator">
@@ -109,9 +109,11 @@
                             <label for="status_filter">Status:</label>
                             <select id="status_filter" name="status_filter">
                                 <option value="">Todos os status</option>
-                                <option value="NEW">Nova</option>
-                                <option value="IN_PROGRESS">Em Progresso</option>
-                                <option value="COMPLETED">Concluída</option>
+                                <option value="2">Pendente</option>
+                                <option value="3">Em andamento</option>
+                                <option value="4">Revisão pendente</option>
+                                <option value="5">Concluída</option>
+                                <option value="6">Adiada</option>
                             </select>
                         </div>
                     </div>
@@ -370,91 +372,33 @@
             const customSelectOptions = document.getElementById('custom_select_options_collaborator');
             const customSelectWrapper = customSelect ? customSelect.closest('.custom-select-wrapper') : null;
             const hiddenInput = document.getElementById('user_substring');
-            const selectedText = customSelect ? customSelect.querySelector('.custom-select-selected') : null;
-            if (!customSelect || !customSelectOptions || !hiddenInput) return;
-            
-            customSelect.addEventListener('click', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
+            const searchInput = document.getElementById('collab_search_input');
+            if (!customSelect || !customSelectOptions || !hiddenInput || !searchInput) return;
+
+            const allLabel = (customSelectWrapper && customSelectWrapper.getAttribute('data-all-collaborators-label')) || 'Todos os colaboradores';
+
+            function openDropdown() {
                 if (customSelectWrapper && customSelectWrapper.classList.contains('field-disabled')) return;
-                const currentDisplay = window.getComputedStyle(customSelectOptions).display;
-                const isOpen = currentDisplay === 'block';
-                if (isOpen) {
-                    customSelectOptions.style.display = 'none';
-                    customSelectOptions.classList.remove('show');
-                    customSelect.classList.remove('active');
-                    customSelectOptions.style.position = '';
-                    customSelectOptions.style.top = '';
-                    customSelectOptions.style.left = '';
-                    customSelectOptions.style.width = '';
-                    customSelectOptions.style.maxWidth = '';
-                    customSelectOptions.style.minWidth = '';
-                    if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
-                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
-                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
-                } else {
-                    closeActivityPresetDropdownOnly();
-                    const selectRect = customSelect.getBoundingClientRect();
-                    const w = selectRect.width + 'px';
-                    customSelectOptions.style.display = 'block';
-                    customSelectOptions.classList.add('show');
-                    customSelect.classList.add('active');
-                    customSelectOptions.style.position = 'fixed';
-                    customSelectOptions.style.top = (selectRect.bottom + 2) + 'px';
-                    customSelectOptions.style.left = selectRect.left + 'px';
-                    customSelectOptions.style.width = w;
-                    customSelectOptions.style.maxWidth = w;
-                    customSelectOptions.style.minWidth = w;
-                    customSelectOptions.style.zIndex = '9999999';
-                    if (customSelectWrapper) customSelectWrapper.classList.add('dropdown-open');
-                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.add('dropdown-open');
-                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.add('dropdown-open');
-                }
-            });
-            
-            customSelectOptions.addEventListener('click', function(e) {
-                const option = e.target.closest('.custom-select-option');
-                if (!option) return;
-                e.stopPropagation();
-                const value = option.getAttribute('data-value') || '';
-                const label = option.textContent.trim();
-                hiddenInput.value = value;
-                if (selectedText) selectedText.textContent = label;
-                customSelectOptions.style.display = 'none';
-                customSelectOptions.classList.remove('show');
-                customSelect.classList.remove('active');
-                customSelectOptions.style.position = '';
-                customSelectOptions.style.top = '';
-                customSelectOptions.style.left = '';
-                customSelectOptions.style.width = '';
-                customSelectOptions.style.maxWidth = '';
-                customSelectOptions.style.minWidth = '';
-                if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
-                if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
-                if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
-                syncDeptCollaboratorExclusion();
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (customSelectWrapper && !customSelectWrapper.contains(e.target) && !customSelectOptions.contains(e.target)) {
-                    customSelectOptions.style.display = 'none';
-                    customSelectOptions.classList.remove('show');
-                    customSelect.classList.remove('active');
-                    customSelectOptions.style.position = '';
-                    customSelectOptions.style.top = '';
-                    customSelectOptions.style.left = '';
-                    customSelectOptions.style.width = '';
-                    customSelectOptions.style.maxWidth = '';
-                    customSelectOptions.style.minWidth = '';
-                    if (customSelectWrapper) customSelectWrapper.classList.remove('dropdown-open');
-                    if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
-                    if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
-                }
-            });
-            
-            function closeCollaboratorDropdown(e) {
-                if (customSelectOptions.contains(e && e.target)) return;
-                if (window.getComputedStyle(customSelectOptions).display !== 'block') return;
+                closeActivityPresetDropdownOnly();
+                const refEl = searchInput || customSelect;
+                const selectRect = refEl.getBoundingClientRect();
+                const w = selectRect.width + 'px';
+                customSelectOptions.style.display = 'block';
+                customSelectOptions.classList.add('show');
+                customSelect.classList.add('active');
+                customSelectOptions.style.position = 'fixed';
+                customSelectOptions.style.top = (selectRect.bottom + 2) + 'px';
+                customSelectOptions.style.left = selectRect.left + 'px';
+                customSelectOptions.style.width = w;
+                customSelectOptions.style.maxWidth = w;
+                customSelectOptions.style.minWidth = w;
+                customSelectOptions.style.zIndex = '9999999';
+                if (customSelectWrapper) customSelectWrapper.classList.add('dropdown-open');
+                if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.add('dropdown-open');
+                if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.add('dropdown-open');
+            }
+
+            function closeDropdown() {
                 customSelectOptions.style.display = 'none';
                 customSelectOptions.classList.remove('show');
                 customSelect.classList.remove('active');
@@ -468,15 +412,119 @@
                 if (customSelect.closest('.form-group')) customSelect.closest('.form-group').classList.remove('dropdown-open');
                 if (customSelect.closest('.form-row')) customSelect.closest('.form-row').classList.remove('dropdown-open');
             }
-            
-            window.addEventListener('scroll', closeCollaboratorDropdown, true);
-            
-            customSelect.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
+
+            function selectOption(value, label) {
+                hiddenInput.value = value;
+                searchInput.value = value ? label : '';
+                searchInput.placeholder = allLabel;
+                closeDropdown();
+                filterOptions('');
+                syncDeptCollaboratorExclusion();
+            }
+
+            function filterOptions(query) {
+                var q = query.toLowerCase().trim();
+                customSelectOptions.querySelectorAll('.custom-select-option').forEach(function(opt) {
+                    var val = opt.getAttribute('data-value') || '';
+                    var text = opt.textContent.toLowerCase();
+                    if (!val) {
+                        opt.style.display = q ? 'none' : '';
+                    } else {
+                        opt.style.display = text.indexOf(q) !== -1 ? '' : 'none';
+                    }
+                });
+            }
+
+            searchInput.addEventListener('focus', function() {
+                openDropdown();
+                filterOptions(this.value);
+            });
+
+            searchInput.addEventListener('input', function() {
+                openDropdown();
+                filterOptions(this.value);
+            });
+
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeDropdown();
+                    searchInput.blur();
+                    return;
+                }
+                if (e.key === 'Enter') {
                     e.preventDefault();
-                    customSelect.click();
+                    var visible = customSelectOptions.querySelectorAll('.custom-select-option[data-value]:not([style*="display: none"])');
+                    var visibleNonEmpty = [];
+                    visible.forEach(function(o) { if (o.getAttribute('data-value')) visibleNonEmpty.push(o); });
+                    if (visibleNonEmpty.length === 1) {
+                        var opt = visibleNonEmpty[0];
+                        selectOption(opt.getAttribute('data-value'), opt.textContent.trim());
+                    }
+                    return;
                 }
             });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(function() {
+                    if (!customSelectOptions.contains(document.activeElement)) {
+                        var current = searchInput.value.trim();
+                        if (!current) {
+                            selectOption('', '');
+                        } else {
+                            var found = false;
+                            customSelectOptions.querySelectorAll('.custom-select-option').forEach(function(opt) {
+                                var val = opt.getAttribute('data-value') || '';
+                                if (val && opt.textContent.trim().toLowerCase() === current.toLowerCase()) {
+                                    found = true;
+                                    selectOption(val, opt.textContent.trim());
+                                }
+                            });
+                            if (!found) {
+                                searchInput.value = hiddenInput.value ? searchInput.value : '';
+                                if (!hiddenInput.value) searchInput.value = '';
+                            }
+                        }
+                        closeDropdown();
+                    }
+                }, 200);
+            });
+
+            var arrowEl = customSelect.querySelector('.custom-select-arrow');
+            if (arrowEl) {
+                arrowEl.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var isOpen = window.getComputedStyle(customSelectOptions).display === 'block';
+                    if (isOpen) {
+                        closeDropdown();
+                    } else {
+                        searchInput.focus();
+                    }
+                });
+            }
+
+            customSelectOptions.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+            });
+
+            customSelectOptions.addEventListener('click', function(e) {
+                var option = e.target.closest('.custom-select-option');
+                if (!option) return;
+                e.stopPropagation();
+                selectOption(option.getAttribute('data-value') || '', option.textContent.trim());
+                searchInput.blur();
+            });
+
+            document.addEventListener('click', function(e) {
+                if (customSelectWrapper && !customSelectWrapper.contains(e.target) && !customSelectOptions.contains(e.target)) {
+                    closeDropdown();
+                }
+            });
+
+            window.addEventListener('scroll', function(e) {
+                if (customSelectOptions.contains(e && e.target)) return;
+                if (window.getComputedStyle(customSelectOptions).display !== 'block') return;
+                closeDropdown();
+            }, true);
         }
         
         function loadCollaboratorsIntoDropdown() {
@@ -518,7 +566,7 @@
             const deptSelect = document.getElementById('dept');
             const userInput = document.getElementById('user_substring');
             const collabWrapper = document.getElementById('collaborator_select_wrapper');
-            const collabSelected = document.querySelector('#custom_select_collaborator .custom-select-selected');
+            const searchInput = document.getElementById('collab_search_input');
             const deptVal = deptSelect ? deptSelect.value.trim() : '';
             const collabVal = userInput ? userInput.value.trim() : '';
             
@@ -528,9 +576,11 @@
                     collabWrapper.setAttribute('aria-disabled', 'true');
                 }
                 if (userInput) userInput.value = '';
-                if (collabSelected) {
+                if (searchInput) {
+                    searchInput.value = '';
                     var label = (collabWrapper && collabWrapper.getAttribute('data-all-collaborators-label')) || 'Todos os colaboradores';
-                    collabSelected.textContent = label;
+                    searchInput.placeholder = label;
+                    searchInput.disabled = true;
                 }
                 if (deptSelect) deptSelect.disabled = false;
             } else if (collabVal) {
@@ -542,12 +592,14 @@
                     collabWrapper.classList.remove('field-disabled');
                     collabWrapper.setAttribute('aria-disabled', 'false');
                 }
+                if (searchInput) searchInput.disabled = false;
             } else {
                 if (deptSelect) deptSelect.disabled = false;
                 if (collabWrapper) {
                     collabWrapper.classList.remove('field-disabled');
                     collabWrapper.setAttribute('aria-disabled', 'false');
                 }
+                if (searchInput) searchInput.disabled = false;
             }
         }
         
@@ -584,10 +636,8 @@
             var userSub = document.getElementById('user_substring');
             if (dept && dept.value && userSub && userSub.value) {
                 userSub.value = '';
-                var sel = document.querySelector('#custom_select_collaborator .custom-select-selected');
-                var wrapper = document.getElementById('collaborator_select_wrapper');
-                var label = (wrapper && wrapper.getAttribute('data-all-collaborators-label')) || 'Todos os colaboradores';
-                if (sel) sel.textContent = label;
+                var si = document.getElementById('collab_search_input');
+                if (si) si.value = '';
             }
             const btn = document.getElementById('exportBtn');
             const btnText = btn.querySelector('.btn-text');
