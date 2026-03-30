@@ -29,9 +29,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Sessão: no Render, SESSION_SECRET pode vir vazia; getenv("X", default) devolve "" e não o default — isso quebra o SessionMiddleware (500 no /dashboard).
+_SESSION_SECRET = (os.getenv("SESSION_SECRET") or "").strip() or "change-this-secret-key-in-production"
+
 # Inicializar FastAPI com middleware de sessão
 middleware = [
-    Middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "change-this-secret-key-in-production"))
+    Middleware(SessionMiddleware, secret_key=_SESSION_SECRET)
 ]
 app = FastAPI(title="Bitrix24 Exporter", version="1.0.0", middleware=middleware)
 
