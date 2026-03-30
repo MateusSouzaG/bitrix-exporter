@@ -67,10 +67,11 @@ async def login_page(request: Request):
         return RedirectResponse(url="/dashboard", status_code=302)
     
     error = request.query_params.get("error", "")
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": error
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"error": error},
+    )
 
 
 @app.post("/login")
@@ -163,15 +164,18 @@ async def dashboard(request: Request):
         available_departments = filter_departments_by_user_access(sorted(depts_fallback), user)
     
     all_collaborators_label = "Todos os colaboradores" if user.role == "admin" else "Todos os colaboradores do departamento"
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "user": user,
-        "departments": available_departments,
-        "collaborator_names": collaborator_names,
-        "is_admin": user.role == "admin",
-        "all_collaborators_label": all_collaborators_label,
-        "preset_options": PRESET_OPTIONS
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "user": user,
+            "departments": available_departments,
+            "collaborator_names": collaborator_names,
+            "is_admin": user.role == "admin",
+            "all_collaborators_label": all_collaborators_label,
+            "preset_options": PRESET_OPTIONS,
+        },
+    )
 
 
 def convert_datetime_local_to_iso8601(dt_str: Optional[str]) -> Optional[str]:
