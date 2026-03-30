@@ -85,6 +85,7 @@ EXCEL_EXPORT_COLUMNS = [
     "Task_ID",
     "Título",
     "Status",
+    "Data de Conclusão",
     "Deadline",
     "Criada_Em",
     "Responsável",

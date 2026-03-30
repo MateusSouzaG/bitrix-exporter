@@ -1,5 +1,6 @@
 """Serviços web para integração da lógica de exportação."""
 import logging
+import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from io import BytesIO
@@ -25,6 +26,17 @@ STATUS_LABELS = {
 }
 
 
+def format_data_conclusao(raw_status: Any, closed_date_str: Optional[str]) -> str:
+    """
+    Data em que a tarefa foi concluída (Bitrix: closedDate), apenas quando status = 5 (Concluída).
+    """
+    if raw_status is None:
+        return ""
+    if str(raw_status).strip() != "5":
+        return ""
+    return format_time_entry_date(closed_date_str or "")
+
+
 def format_status(raw_status: Any) -> str:
     """
     Converte o status numérico/textual retornado pelo Bitrix24 para rótulos legíveis.
@@ -41,6 +53,11 @@ def format_time_entry_date(date_str: str) -> str:
     if not date_str or not str(date_str).strip():
         return ""
     date_str = str(date_str).strip()
+    # ISO com timezone ou frações: usar prefixo até os segundos
+    head = date_str.replace("Z", "").split(".")[0]
+    m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})", head)
+    if m:
+        date_str = m.group(1)
     try:
         # Bitrix pode retornar ISO (2025-04-28T13:56:00) ou "YYYY-MM-DD HH:MM:SS"
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
@@ -108,6 +125,7 @@ def combine_tasks_with_time_entries(
             "Task_ID": task.get("task_id", 0),
             "Título": str(task.get("title", "")),
             "Status": format_status(task.get("status", "")),
+            "Data de Conclusão": format_data_conclusao(task.get("status"), task.get("closed_date")),
             "Deadline": str(task.get("deadline", "")) if task.get("deadline") else "",
             "Criada_Em": format_time_entry_date(task.get("created_date", "") or ""),
             "Responsável": str(task.get("responsible_name", "")),

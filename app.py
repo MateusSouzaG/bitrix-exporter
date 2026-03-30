@@ -35,7 +35,7 @@ middleware = [
 ]
 app = FastAPI(title="Bitrix24 Exporter", version="1.0.0", middleware=middleware)
 
-# Log de diagnóstico: confirma qual módulo de Excel está carregado (deve mostrar 14 colunas incluindo "Data do lançamento")
+# Log de diagnóstico: confirma qual módulo de Excel está carregado (inclui "Data de Conclusão", "Data do lançamento", etc.)
 logger.info(
     "Excel export: módulo=%s colunas=%d",
     getattr(_excel_handler, "__file__", "?"),
