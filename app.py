@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 from fastapi import FastAPI, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -57,6 +57,12 @@ async def root(request: Request):
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
     return RedirectResponse(url="/login", status_code=302)
+
+
+@app.get("/health")
+@app.head("/health")
+async def health_check():
+    return Response(status_code=200, content="ok")
 
 
 @app.get("/login", response_class=HTMLResponse)
