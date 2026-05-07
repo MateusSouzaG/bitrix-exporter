@@ -124,18 +124,8 @@ def format_date_for_input(dt: datetime) -> str:
 # Opções disponíveis para o select (mapeadas para as opções nativas do Bitrix24)
 PRESET_OPTIONS = [
     ("", "Todo o período"),
-    ("dia_atual", "Dia atual"),
-    ("amanha", "Amanhã"),
-    ("esta_semana", "Esta semana"),
-    ("este_mes", "Este mês"),
-    ("trimestre_anual", "Trimestre anual"),
     ("ultimos_7_dias", "Últimos 7 dias"),
     ("ultimos_30_dias", "Últimos 30 dias"),
     ("ultimos_60_dias", "Últimos 60 dias"),
     ("ultimos_90_dias", "Últimos 90 dias"),
-    ("semana_passada", "Semana passada"),
-    ("mes_passado", "Mês passado"),
-    ("proxima_semana", "Na próxima semana"),
-    ("proximo_mes", "No próximo mês"),
-    ("intervalo_personalizado", "Intervalo personalizado"),
 ]
