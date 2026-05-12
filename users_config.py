@@ -23,21 +23,24 @@ class User:
         password_hash: str,
         full_name: str,
         role: str,
-        allowed_departments: Optional[List[str]] = None
+        allowed_departments: Optional[List[str]] = None,
+        fixed_collaborator_name: Optional[str] = None
     ):
         """
         Args:
             username: Nome de usuário para login
             password_hash: Hash da senha (bcrypt)
             full_name: Nome completo do usuário
-            role: "admin" ou "supervisor"
+            role: "admin", "supervisor" ou "colaborador"
             allowed_departments: Lista de departamentos permitidos (None = todos para admin)
+            fixed_collaborator_name: Nome fixo do colaborador na planilha (role='colaborador' só vê a si mesmo)
         """
         self.username = username
         self.password_hash = password_hash
         self.full_name = full_name
         self.role = role
         self.allowed_departments = allowed_departments
+        self.fixed_collaborator_name = fixed_collaborator_name
     
     def has_access_to_department(self, department: str) -> bool:
         """Verifica se o usuário tem acesso a um departamento."""
@@ -59,6 +62,10 @@ HASH_MATEUS = "$2b$12$h8/KhUM9WkV9Laip8BxZmur/eTIHI0RLlkM.U3O8Fj95v36O0AenK"
 HASH_TAYLA = "$2b$12$pVlJ.sd9xRitW4KRaHvt9.ae0kZC.uuTmlAB7gou40iE0pB50gWmm"
 HASH_RAFAEL = "$2b$12$/U25ccGC5pjDcAKdP7ehiuUqHAinQFxr9L8l/KLxJWslP6RAWEcma"
 HASH_DEBORAH = "$2b$12$6daKfwmyXiE7hvsNv17.LegTTL9f2jfvF6QycYv5CFvPWB/ce0oO."
+HASH_CAROLINE = "$2b$12$sKYjUMEZPHzVek1O/6o0hewMv8Yn.dgPIG//4WDVwnkvsZV3XfqnO"
+HASH_JESSICA = "$2b$12$YIB511J9uE1pAu4SrjoLKe6pbyBDEx7kaPUaf0EHNbRynqr9EHdum"
+HASH_ROBERTA = "$2b$12$DnItISMe4lZlXvMYLN4ysOE7QreSpwsWuTBS2KzYrwlBIKI92RHb2"
+HASH_LARISSA_P = "$2b$12$rA1M7FiGHfn3B2aRz62i5efidTC.ourcdenlravmm94xSkX0NX7.K"
 
 # Configuração de usuários (cada um com sua própria senha)
 USERS: Dict[str, User] = {
@@ -98,6 +105,39 @@ USERS: Dict[str, User] = {
         full_name="Deborah Szajin",
         role="supervisor",
         allowed_departments=["COMERCIAL"]
+    ),
+    # Colaboradores individuais (só podem ver/exportar suas próprias tarefas)
+    "caroline.santana": User(
+        username="caroline.santana",
+        password_hash=HASH_CAROLINE,
+        full_name="Caroline Santana",
+        role="colaborador",
+        allowed_departments=["GI"],
+        fixed_collaborator_name="Caroline Santana"
+    ),
+    "jessica.albino": User(
+        username="jessica.albino",
+        password_hash=HASH_JESSICA,
+        full_name="Jéssica Albino",
+        role="colaborador",
+        allowed_departments=["GI"],
+        fixed_collaborator_name="Jéssica Albino"
+    ),
+    "roberta.faria": User(
+        username="roberta.faria",
+        password_hash=HASH_ROBERTA,
+        full_name="Roberta Faria",
+        role="colaborador",
+        allowed_departments=["GI"],
+        fixed_collaborator_name="Roberta Faria"
+    ),
+    "larissa.porto": User(
+        username="larissa.porto",
+        password_hash=HASH_LARISSA_P,
+        full_name="Larissa Porto",
+        role="colaborador",
+        allowed_departments=["GI"],
+        fixed_collaborator_name="Larissa Porto"
     ),
 }
 

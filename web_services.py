@@ -192,6 +192,8 @@ def filter_departments_by_user_access(
     """Filtra departamentos baseado no acesso do usuário."""
     if user.role == "admin":
         return departments
+    if user.role == "colaborador":
+        return []
     if user.allowed_departments is None:
         return []
     return [d for d in departments if d.upper() in [ad.upper() for ad in user.allowed_departments]]
@@ -201,7 +203,9 @@ def filter_collaborator_names_by_user_access(
     collaborators_map: Dict[int, Dict[str, str]],
     user: User
 ) -> List[str]:
-    """Retorna apenas os nomes de colaboradores que o usuário pode acessar (admin = todos, supervisor = só do seu departamento)."""
+    """Retorna apenas os nomes de colaboradores que o usuário pode acessar."""
+    if user.role == "colaborador" and user.fixed_collaborator_name:
+        return [user.fixed_collaborator_name]
     if user.role == "admin":
         return sorted({info["name"] for info in collaborators_map.values() if info.get("name")})
     if user.allowed_departments is None:

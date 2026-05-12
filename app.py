@@ -169,7 +169,13 @@ async def dashboard(request: Request):
                 depts_fallback.update(d.upper() for d in u.allowed_departments)
         available_departments = filter_departments_by_user_access(sorted(depts_fallback), user)
     
-    all_collaborators_label = "Todos os colaboradores" if user.role == "admin" else "Todos os colaboradores do departamento"
+    is_colaborador = user.role == "colaborador"
+    if is_colaborador:
+        all_collaborators_label = user.fixed_collaborator_name or user.full_name
+    elif user.role == "admin":
+        all_collaborators_label = "Todos os colaboradores"
+    else:
+        all_collaborators_label = "Todos os colaboradores do departamento"
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -178,6 +184,8 @@ async def dashboard(request: Request):
             "departments": available_departments,
             "collaborator_names": collaborator_names,
             "is_admin": user.role == "admin",
+            "is_colaborador": is_colaborador,
+            "fixed_collaborator_name": user.fixed_collaborator_name or "",
             "all_collaborators_label": all_collaborators_label,
             "preset_options": PRESET_OPTIONS,
         },
@@ -220,8 +228,14 @@ async def export_tasks(
     """Exporta tarefas para Excel."""
     user = require_auth(request)
     
+    # Colaborador individual: forçar filtro pelo próprio nome (ignora qualquer valor enviado)
+    if user.role == "colaborador" and user.fixed_collaborator_name:
+        user_substring = user.fixed_collaborator_name
+        dept = ""
+        logger.info(f"Colaborador {user.username}: filtro fixado para '{user_substring}'")
+    
     # Supervisores: sem filtro = restringir ao primeiro (e único) departamento permitido
-    if user.role != "admin" and user.allowed_departments and not dept and not (user_substring or "").strip():
+    if user.role != "admin" and user.role != "colaborador" and user.allowed_departments and not dept and not (user_substring or "").strip():
         dept = user.allowed_departments[0]
         logger.info(f"Supervisor {user.username}: sem filtro; usando departamento padrão {dept}")
     
