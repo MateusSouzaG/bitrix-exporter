@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumo diário - Comercial</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Resumo diário — Comercial</h1>
+            <div class="user-info">
+                <span>Olá, {{ user.full_name }}</span>
+                <a href="/comercial" class="btn btn-secondary btn-small">Voltar</a>
+                {% if show_timesheet_link %}
+                <a href="/dashboard" class="btn btn-secondary btn-small">Timesheet</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="card">
+                {% if success %}
+                <div class="error-message" style="background:#e8f5e9;border-color:#4caf50;color:#2e7d32;">
+                    Resumo salvo com sucesso.
+                </div>
+                {% endif %}
+                {% if error %}
+                <div class="error-message">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="/comercial/formulario" class="export-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="collaborator_name">Colaborador:</label>
+                            {% if fixed_collaborator_name %}
+                            <input type="hidden" name="collaborator_name" value="{{ fixed_collaborator_name }}">
+                            <input type="text" value="{{ fixed_collaborator_name }}" disabled style="background:#f0f0f0;">
+                            {% else %}
+                            <select id="collaborator_name" name="collaborator_name" required>
+                                {% for name in collaborator_names %}
+                                <option value="{{ name }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="report_date">Data:</label>
+                            <input type="date" id="report_date" name="report_date" value="{{ default_date }}" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="start_time">Horário início:</label>
+                            <input type="time" id="start_time" name="start_time">
+                        </div>
+                        <div class="form-group">
+                            <label for="end_time">Horário fim:</label>
+                            <input type="time" id="end_time" name="end_time">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contacts_count">Contatos efetuados:</label>
+                            <input type="number" id="contacts_count" name="contacts_count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="meetings_scheduled">Reuniões agendadas:</label>
+                            <input type="number" id="meetings_scheduled" name="meetings_scheduled" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="meetings_institutional">Reunião Institucional (QSP/QSN):</label>
+                            <input type="number" id="meetings_institutional" name="meetings_institutional" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="meetings_desdobramento">Reunião de Desdobramento:</label>
+                            <input type="number" id="meetings_desdobramento" name="meetings_desdobramento" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="meetings_nutricao">Reunião de Nutrição:</label>
+                            <input type="number" id="meetings_nutricao" name="meetings_nutricao" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Salvar resumo do dia</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comercial - Controles</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Controle Comercial</h1>
+            <div class="user-info">
+                <span>Olá, {{ user.full_name }}</span>
+                {% if show_timesheet_link %}
+                <a href="/dashboard" class="btn btn-secondary btn-small">Timesheet / Tarefas</a>
+                {% endif %}
+                <a href="/logout" class="btn btn-secondary btn-small">Sair</a>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="card">
+                <h2>Produtividade e agenda "#"</h2>
+                <p class="description">
+                    Semana de referência para o relatório de segunda-feira:
+                    <strong>{{ week_start }} a {{ week_end }}</strong> (segunda a domingo, semana anterior).
+                </p>
+
+                <div class="form-row comercial-actions">
+                    <div class="form-group comercial-action-block">
+                        <h3>1. Resumo diário</h3>
+                        <p>Substitui o envio por mensagem. Um formulário por dia e colaborador.</p>
+                        <a href="/comercial/formulario" class="btn btn-primary">Preencher resumo diário</a>
+                    </div>
+                    {% if can_export_all %}
+                    <div class="form-group comercial-action-block">
+                        <h3>2. Relatório semanal</h3>
+                        <p>Consolida formulários + contagem de reuniões com "#" na agenda Bitrix24.</p>
+                        <form method="POST" action="/comercial/exportar-semanal">
+                            <button type="submit" class="btn btn-primary">Exportar Excel (semana anterior)</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Convenções (Fase 0)</h3>
+                <ul>
+                    <li><strong>Reunião realizada:</strong> compromisso na agenda com <code>#</code> no título ou descrição.</li>
+                    <li><strong>Tipos de reunião:</strong> classificados por palavras-chave (QSP/QSN, Desdobramento, Nutrição).</li>
+                    <li><strong>Departamento:</strong> {{ comercial_dept }} (planilha de colaboradores).</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

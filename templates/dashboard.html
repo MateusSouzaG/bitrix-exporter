@@ -13,6 +13,9 @@
             <div class="user-info">
                 <span>Olá, {{ user.full_name }}</span>
                 <span class="role-badge">{{ "Administrador" if is_admin else ("Colaborador" if is_colaborador else "Supervisor") }}</span>
+                {% if show_comercial_link %}
+                <a href="/comercial" class="btn btn-secondary btn-small">Comercial</a>
+                {% endif %}
                 <a href="/logout" class="btn btn-secondary btn-small">Sair</a>
             </div>
         </header>

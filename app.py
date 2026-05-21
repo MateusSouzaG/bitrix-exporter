@@ -19,6 +19,11 @@ from web_services import (
 )
 from excel_handler import read_collaborators_sheet
 from date_filters import get_date_range_for_preset, PRESET_OPTIONS
+from comercial_access import (
+    user_can_access_comercial,
+    user_has_timesheet_access,
+    user_home_path,
+)
 from config import COLLABORATORS_SHEET_PATH, FALLBACK_DEPARTMENTS
 import excel_handler as _excel_handler
 
@@ -38,6 +43,11 @@ middleware = [
 ]
 app = FastAPI(title="Bitrix24 Exporter", version="1.0.0", middleware=middleware)
 
+# Módulo Comercial (rotas isoladas; não altera /export nem exportação de tarefas)
+from comercial_routes import comercial_router  # noqa: E402
+
+app.include_router(comercial_router)
+
 # Log de diagnóstico: confirma qual módulo de Excel está carregado (inclui "Data de Conclusão", "Data do lançamento", etc.)
 logger.info(
     "Excel export: módulo=%s colunas=%d",
@@ -55,7 +65,7 @@ async def root(request: Request):
     """Redireciona para login se não autenticado, senão para dashboard."""
     user = get_current_user_from_session(request)
     if user:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url=user_home_path(user), status_code=302)
     return RedirectResponse(url="/login", status_code=302)
 
 
@@ -70,7 +80,7 @@ async def login_page(request: Request):
     """Página de login."""
     user = get_current_user_from_session(request)
     if user:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        return RedirectResponse(url=user_home_path(user), status_code=302)
     
     error = request.query_params.get("error", "")
     return templates.TemplateResponse(
@@ -87,7 +97,7 @@ async def login(
     password: str = Form(...)
 ):
     """Processa login do usuário."""
-    user = authenticate_user(username, password)
+    user = authenticate_user((username or "").strip(), (password or "").strip())
     if not user:
         return RedirectResponse(
             url="/login?error=Usuário ou senha inválidos",
@@ -100,7 +110,7 @@ async def login(
     request.session["role"] = user.role
     
     logger.info(f"Usuário {user.username} fez login")
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url=user_home_path(user), status_code=302)
 
 
 @app.get("/logout")
@@ -114,6 +124,8 @@ async def logout(request: Request):
 async def api_collaborators(request: Request):
     """Retorna a lista de nomes dos colaboradores que o usuário pode acessar (admin = todos, supervisor = só do seu departamento)."""
     user = require_auth(request)
+    if not user_has_timesheet_access(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado.")
     try:
         collaborators_map = read_collaborators_sheet(COLLABORATORS_SHEET_PATH)
         names = filter_collaborator_names_by_user_access(collaborators_map, user)
@@ -127,6 +139,8 @@ async def api_collaborators(request: Request):
 async def api_departments(request: Request):
     """Retorna a lista de departamentos para o dropdown (requer login)."""
     user = require_auth(request)
+    if not user_has_timesheet_access(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado.")
     try:
         collaborators_map = read_collaborators_sheet(COLLABORATORS_SHEET_PATH)
         all_departments = get_available_departments(collaborators_map)
@@ -147,6 +161,8 @@ async def api_departments(request: Request):
 async def dashboard(request: Request):
     """Dashboard principal."""
     user = require_auth(request)
+    if not user_has_timesheet_access(user):
+        return RedirectResponse(url="/comercial", status_code=302)
     
     # Carregar departamentos e lista de colaboradores para o dropdown
     try:
@@ -188,6 +204,8 @@ async def dashboard(request: Request):
             "fixed_collaborator_name": user.fixed_collaborator_name or "",
             "all_collaborators_label": all_collaborators_label,
             "preset_options": PRESET_OPTIONS,
+            "show_comercial_link": user_can_access_comercial(user)
+                and (user.role == "admin" or user.role == "supervisor"),
         },
     )
 
@@ -227,6 +245,11 @@ async def export_tasks(
 ):
     """Exporta tarefas para Excel."""
     user = require_auth(request)
+    if not user_has_timesheet_access(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado ao exportador de tarefas.",
+        )
     
     # Colaborador individual: forçar filtro pelo próprio nome (ignora qualquer valor enviado)
     if user.role == "colaborador" and user.fixed_collaborator_name:

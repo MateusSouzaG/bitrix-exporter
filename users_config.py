@@ -1,8 +1,10 @@
 """Configuração de usuários e permissões do sistema."""
 from typing import Dict, List, Optional
+
+import bcrypt
 from passlib.context import CryptContext
 
-# Contexto para hash de senhas
+# Contexto para hash de senhas (geração); verificação usa bcrypt direto (compatível com bcrypt 4.x)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -24,7 +26,8 @@ class User:
         full_name: str,
         role: str,
         allowed_departments: Optional[List[str]] = None,
-        fixed_collaborator_name: Optional[str] = None
+        fixed_collaborator_name: Optional[str] = None,
+        comercial_only: bool = False,
     ):
         """
         Args:
@@ -34,6 +37,7 @@ class User:
             role: "admin", "supervisor" ou "colaborador"
             allowed_departments: Lista de departamentos permitidos (None = todos para admin)
             fixed_collaborator_name: Nome fixo do colaborador na planilha (role='colaborador' só vê a si mesmo)
+            comercial_only: Se True, acesso apenas ao módulo /comercial (sem timesheet)
         """
         self.username = username
         self.password_hash = password_hash
@@ -41,6 +45,7 @@ class User:
         self.role = role
         self.allowed_departments = allowed_departments
         self.fixed_collaborator_name = fixed_collaborator_name
+        self.comercial_only = comercial_only
     
     def has_access_to_department(self, department: str) -> bool:
         """Verifica se o usuário tem acesso a um departamento."""
@@ -53,7 +58,13 @@ class User:
     def verify_password(self, password: str) -> bool:
         """Verifica se a senha está correta."""
         password = _truncate_for_bcrypt(password or "")
-        return pwd_context.verify(password, self.password_hash)
+        try:
+            return bcrypt.checkpw(
+                password.encode("utf-8"),
+                self.password_hash.encode("utf-8"),
+            )
+        except (ValueError, TypeError):
+            return pwd_context.verify(password, self.password_hash)
 
 
 # Hashes de senha por gestor (bcrypt, senhas fortes 2026). Para trocar: hash_password("nova_senha") e substitua o hash.
@@ -66,6 +77,7 @@ HASH_CAROLINE = "$2b$12$sKYjUMEZPHzVek1O/6o0hewMv8Yn.dgPIG//4WDVwnkvsZV3XfqnO"
 HASH_JESSICA = "$2b$12$YIB511J9uE1pAu4SrjoLKe6pbyBDEx7kaPUaf0EHNbRynqr9EHdum"
 HASH_ROBERTA = "$2b$12$DnItISMe4lZlXvMYLN4ysOE7QreSpwsWuTBS2KzYrwlBIKI92RHb2"
 HASH_LARISSA_P = "$2b$12$rA1M7FiGHfn3B2aRz62i5efidTC.ourcdenlravmm94xSkX0NX7.K"
+HASH_MARIANA = "$2b$12$p4nt0gveHA6kyp9oqOenXe8Y4W.A2xXVG2IcRyywn6IXI4CF5/7ae"
 
 # Configuração de usuários (cada um com sua própria senha)
 USERS: Dict[str, User] = {
@@ -106,6 +118,14 @@ USERS: Dict[str, User] = {
         role="supervisor",
         allowed_departments=["COMERCIAL"]
     ),
+    "mariana.borges": User(
+        username="mariana.borges",
+        password_hash=HASH_MARIANA,
+        full_name="Mariana Borges",
+        role="supervisor",
+        allowed_departments=["COMERCIAL"],
+        comercial_only=True,
+    ),
     # Colaboradores individuais (só podem ver/exportar suas próprias tarefas)
     "caroline.santana": User(
         username="caroline.santana",
@@ -144,7 +164,7 @@ USERS: Dict[str, User] = {
 
 def get_user(username: str) -> Optional[User]:
     """Retorna um usuário pelo username."""
-    return USERS.get(username.lower())
+    return USERS.get((username or "").strip().lower())
 
 
 def get_allowed_departments_for_user(username: str) -> Optional[List[str]]:
@@ -162,7 +182,7 @@ def verify_user_password(username: str, password: str) -> bool:
     user = get_user(username)
     if user is None:
         return False
-    return user.verify_password(password)
+    return user.verify_password((password or "").strip())
 
 
 def hash_password(password: str) -> str:
